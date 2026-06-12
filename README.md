@@ -352,11 +352,11 @@ The key flag: `--remote-debugging-port=9222`
 ## Testing
 
 ```bash
-# Requires TradingView running with --remote-debugging-port=9222
+# Offline tests run anywhere; e2e tests additionally require TradingView running with --remote-debugging-port=9222
 npm test
 ```
 
-29 tests covering: Pine Script static analysis, server-side compilation, and CLI routing.
+17 tests covering Pine Script static analysis, server-side compilation, and CLI routing — 16 run fully offline; the e2e test requires a live TradingView Desktop with the debug port enabled.
 
 ## Architecture
 

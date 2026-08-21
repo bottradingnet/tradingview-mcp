@@ -228,7 +228,7 @@ Claude reads [`CLAUDE.md`](CLAUDE.md) automatically when working in this project
 | "Draw a level at 24500" | `draw_shape` (horizontal_line) |
 | "Take a screenshot" | `capture_screenshot` |
 
-## Tool Reference (78 MCP tools)
+## Tool Reference (84 MCP tools)
 
 ### Chart Reading
 
@@ -264,6 +264,7 @@ Read `line.new()`, `label.new()`, `table.new()`, `box.new()` output from any vis
 | `chart_set_visible_range` | Zoom to exact range (unix timestamps) |
 | `symbol_info` / `symbol_search` | Symbol metadata and search |
 | `indicator_set_inputs` / `indicator_toggle_visibility` | Change indicator settings, show/hide |
+| `indicator_search` / `indicator_add` | Search the indicator/strategy library and add by exact name |
 
 ### Multi-Pane Layouts
 
@@ -317,10 +318,11 @@ Read `line.new()`, `label.new()`, `table.new()`, `box.new()` output from any vis
 | `alert_create` / `alert_list` / `alert_delete` | Manage price alerts |
 | `capture_screenshot` | Screenshot (regions: full, chart, strategy_tester) |
 | `batch_run` | Run action across multiple symbols/timeframes |
-| `watchlist_get` / `watchlist_add` | Read/modify watchlist |
-| `layout_list` / `layout_switch` | Manage saved layouts |
+| `watchlist_get` / `watchlist_add` / `watchlist_remove` / `watchlist_add_bulk` | Read/modify watchlist, bulk add, remove |
+| `layout_list` / `layout_switch` / `layout_new` | Manage saved layouts, create a new one |
 | `ui_open_panel` / `ui_click` / `ui_evaluate` | UI automation |
 | `tv_launch` / `tv_health_check` / `tv_discover` | Connection management |
+| `tv_update` | Self-update: fast-forward `origin/main` + `npm ci` when deps changed. Refuses on dirty trees or diverged history |
 
 ## Context Management
 
@@ -356,7 +358,7 @@ The key flag: `--remote-debugging-port=9222`
 npm test
 ```
 
-17 tests covering Pine Script static analysis, server-side compilation, and CLI routing — 16 run fully offline; the e2e test requires a live TradingView Desktop with the debug port enabled.
+152 offline tests across 8 files: Pine Script static analysis, CLI routing, launch detection, chart history, indicator handling, output sanitization, replay, and the self-update guards. Run them with `npm run test:unit`. `npm test` also runs the e2e test, which requires a live TradingView Desktop with the debug port enabled.
 
 ## Architecture
 
@@ -364,7 +366,7 @@ npm test
 Claude Code  ←→  MCP Server (stdio)  ←→  CDP (port 9222)  ←→  TradingView Desktop (Electron)
 ```
 
-- **Transport**: MCP over stdio (78 tools) + CLI (`tv` command, 30 commands with 66 subcommands)
+- **Transport**: MCP over stdio (84 tools) + CLI (`tv` command, 30 commands with 66 subcommands)
 - **Connection**: Chrome DevTools Protocol on localhost:9222
 - **Streaming**: Poll-and-diff loop with deduplication, JSONL output to stdout
 - **No dependencies** beyond `@modelcontextprotocol/sdk` and `chrome-remote-interface`
@@ -381,7 +383,7 @@ This tool is an independent MCP server that connects to Claude Code via the stan
 
 This project is provided **for personal, educational, and research purposes only**.
 
-**How this tool works:** This tool uses the Chrome DevTools Protocol (CDP), a standard debugging interface built into all Chromium-based applications by Google. It does not reverse engineer any proprietary TradingView protocol, connect to TradingView's servers, or bypass any access controls. The debug port must be explicitly enabled by the user via a standard Chromium command-line flag (`--remote-debugging-port=9222`).
+**How this tool works:** This tool uses Chrome DevTools Protocol (CDP), the standard debugging interface built into Chromium-based applications. It does not reverse engineer any proprietary TradingView protocol, connect to TradingView's servers, or bypass any access controls. The debug port must be explicitly enabled by the user via a standard Chromium command-line flag (`--remote-debugging-port=9222`).
 
 By using this software, you acknowledge and agree that:
 

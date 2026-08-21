@@ -39,9 +39,31 @@ export async function drawShape({ shape, point, point2, overrides: overridesRaw,
 
   await new Promise(r => setTimeout(r, 200));
   const after = await evaluate(`${apiPath}.getAllShapes().map(function(s) { return s.id; })`);
-  const newId = (after || []).find(id => !(before || []).includes(id)) || null;
-  const result = { entity_id: newId };
-  return { success: true, shape, entity_id: result?.entity_id };
+  const beforeIds = before || [];
+  const afterIds = after || [];
+  const newId = afterIds.find(id => !beforeIds.includes(id)) || null;
+
+  // TradingView accepts createShape without complaint even when it draws nothing
+  // (unknown shape name, a time outside the loaded range, a locked chart). Reporting
+  // success there is how a caller ends up believing levels are on the chart when the
+  // chart is empty. Only claim success if the shape count actually grew.
+  if (!newId && afterIds.length <= beforeIds.length) {
+    return {
+      success: false,
+      shape,
+      entity_id: null,
+      shapes_before: beforeIds.length,
+      shapes_after: afterIds.length,
+      error: `TradingView accepted the call but no drawing appeared (${beforeIds.length} shapes before, ${afterIds.length} after). Check that "${shape}" is a shape TradingView knows (horizontal_line, vertical_line, trend_line, rectangle, text), that point.time is a unix timestamp in SECONDS inside the chart's loaded range, and that the chart is not locked.`,
+    };
+  }
+
+  return {
+    success: true,
+    shape,
+    entity_id: newId,
+    ...(newId ? {} : { note: 'Drawing was created but its entity id could not be resolved from getAllShapes(); draw_remove_one will need an id from draw_list.' }),
+  };
 }
 
 export async function listDrawings() {

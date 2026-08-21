@@ -21,7 +21,7 @@ import { drawShape } from '../src/core/drawing.js';
 
 // evaluate() is called three times per drawShape: getAllShapes, createShape, getAllShapes.
 // Only the getAllShapes calls return ids.
-function stubDeps(beforeIds, afterIds) {
+function stubDeps(beforeIds, afterIds, createReturns = undefined) {
   let shapeReads = 0;
   return {
     getChartApi: async () => 'API',
@@ -29,6 +29,9 @@ function stubDeps(beforeIds, afterIds) {
       if (expr.includes('getAllShapes')) return ++shapeReads === 1 ? beforeIds : afterIds;
       return null;
     },
+    // createShape goes through evaluateAsync (awaitPromise:true). Default stub returns
+    // nothing, so the id has to come from the getAllShapes diff — the harder path.
+    evaluateAsync: async () => createReturns,
   };
 }
 
@@ -68,6 +71,20 @@ describe('drawShape — success is earned, not assumed', () => {
     });
     assert.equal(r.success, true);
     assert.equal(r.entity_id, 't1');
+  });
+
+  it('uses the id createShape resolves to, without needing the diff', async () => {
+    // The Promise resolves to the entity id. Before the awaitPromise fix this value was
+    // thrown away and entity_id came back null even on a successful draw.
+    const r = await drawShape({ shape: 'horizontal_line', point: POINT, _deps: stubDeps([], [], 'shape_42') });
+    assert.equal(r.success, true);
+    assert.equal(r.entity_id, 'shape_42');
+  });
+
+  it('still succeeds when createShape resolves to nothing but the chart grew', async () => {
+    const r = await drawShape({ shape: 'rectangle', point: POINT, point2: { time: 2, price: 3 }, _deps: stubDeps(['a'], ['a', 'z']) });
+    assert.equal(r.success, true);
+    assert.equal(r.entity_id, 'z');
   });
 
   it('rejects a non-finite coordinate instead of drawing at NaN', async () => {

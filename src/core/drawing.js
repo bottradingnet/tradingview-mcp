@@ -1,14 +1,18 @@
 /**
  * Core drawing logic.
  */
-import { evaluate as _evaluate, getChartApi as _getChartApi, safeString, requireFinite } from '../connection.js';
+import { evaluate as _evaluate, evaluateAsync as _evaluateAsync, getChartApi as _getChartApi, safeString, requireFinite } from '../connection.js';
 
 function _resolve(deps) {
-  return { evaluate: deps?.evaluate || _evaluate, getChartApi: deps?.getChartApi || _getChartApi };
+  return {
+    evaluate: deps?.evaluate || _evaluate,
+    evaluateAsync: deps?.evaluateAsync || _evaluateAsync,
+    getChartApi: deps?.getChartApi || _getChartApi,
+  };
 }
 
 export async function drawShape({ shape, point, point2, overrides: overridesRaw, text, _deps }) {
-  const { evaluate, getChartApi } = _resolve(_deps);
+  const { evaluate, evaluateAsync, getChartApi } = _resolve(_deps);
   const overrides = overridesRaw ? (typeof overridesRaw === 'string' ? JSON.parse(overridesRaw) : overridesRaw) : {};
   const apiPath = await getChartApi();
   const overridesStr = JSON.stringify(overrides || {});
@@ -19,17 +23,24 @@ export async function drawShape({ shape, point, point2, overrides: overridesRaw,
 
   const before = await evaluate(`${apiPath}.getAllShapes().map(function(s) { return s.id; })`);
 
+  // createShape / createMultipointShape return a Promise on TradingView Desktop.
+  // evaluate() sends awaitPromise:false, so the old code resolved before the shape
+  // existed and discarded the id it resolves to — which is why callers saw a null
+  // entity_id and, when the 200ms grace below lost the race, an empty chart.
+  // evaluateAsync sets awaitPromise:true and is what every other core module uses;
+  // drawing.js was the only one that never did. It is a no-op on a non-Promise value.
+  let created;
   if (point2) {
     const p2time = requireFinite(point2.time, 'point2.time');
     const p2price = requireFinite(point2.price, 'point2.price');
-    await evaluate(`
+    created = await evaluateAsync(`
       ${apiPath}.createMultipointShape(
         [{ time: ${p1time}, price: ${p1price} }, { time: ${p2time}, price: ${p2price} }],
         { shape: ${safeString(shape)}, overrides: ${overridesStr}, text: ${textStr} }
       )
     `);
   } else {
-    await evaluate(`
+    created = await evaluateAsync(`
       ${apiPath}.createShape(
         { time: ${p1time}, price: ${p1price} },
         { shape: ${safeString(shape)}, overrides: ${overridesStr}, text: ${textStr} }
@@ -41,7 +52,9 @@ export async function drawShape({ shape, point, point2, overrides: overridesRaw,
   const after = await evaluate(`${apiPath}.getAllShapes().map(function(s) { return s.id; })`);
   const beforeIds = before || [];
   const afterIds = after || [];
-  const newId = afterIds.find(id => !beforeIds.includes(id)) || null;
+  // Prefer the id createShape itself resolved to; fall back to diffing the shape list.
+  const returnedId = typeof created === 'string' && created ? created : null;
+  const newId = returnedId || afterIds.find(id => !beforeIds.includes(id)) || null;
 
   // TradingView accepts createShape without complaint even when it draws nothing
   // (unknown shape name, a time outside the loaded range, a locked chart). Reporting

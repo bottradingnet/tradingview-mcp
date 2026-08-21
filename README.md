@@ -9,7 +9,7 @@ Connect Claude to your TradingView Desktop charts. This MCP gives your AI assist
 > - **Not affiliated with TradingView.** Bottrading and this tool are independent and are not affiliated with, endorsed by, or associated with TradingView Inc. "TradingView" is a trademark of TradingView Inc.
 > - **Not affiliated with Anthropic.** Claude is a trademark of Anthropic, PBC. This is an independent MCP server, not an Anthropic product.
 > - **Requires a valid TradingView subscription.** This tool does not bypass, circumvent, or unlock any TradingView paywall or access control. It reads from and controls the TradingView Desktop app already running on your own machine.
-> - **Your data stays local.** No TradingView data is transmitted, stored, or redistributed by this tool. All processing happens on your machine.
+> - **Nothing is sent to us.** This tool has no backend. No chart data, credentials, or telemetry ever reach Bottrading or any third party. A few features do call TradingView's own endpoints using the session your Desktop app is already signed in to — see [How It Works](#how-it-works-and-why-its-safe-to-run) for the exact list.
 > - **Use at your own risk.** Programmatic interaction with TradingView may conflict with [TradingView's Terms of Use](https://www.tradingview.com/policies/). You are solely responsible for compliance. See the full [Disclaimer](#disclaimer) below.
 
 > [!NOTE]
@@ -22,21 +22,32 @@ Connect Claude to your TradingView Desktop charts. This MCP gives your AI assist
 > **Requires a valid TradingView subscription.** This tool does not bypass or circumvent any TradingView paywall or access control. It reads from and controls the TradingView Desktop app already running on your machine.
 
 > [!NOTE]
-> **All data processing occurs locally on your machine.** No TradingView data is transmitted, stored, or redistributed externally by this tool.
+> **No third party sees your data.** Everything read from your chart is processed on your machine, and this tool never stores or redistributes market data. Its only outbound requests go to TradingView's own endpoints, using your existing login, plus one version check against `api.github.com`.
 
 > [!CAUTION]
 > This tool accesses undocumented internal TradingView APIs via the Electron debug interface. These can change or break without notice in any TradingView update. Pin your TradingView Desktop version if stability matters to you.
 
 ## How It Works (and why it's safe to run)
 
-This tool does not connect to TradingView's servers, modify any TradingView files, or intercept any network traffic. It communicates exclusively with your locally running TradingView Desktop instance via Chrome DevTools Protocol (CDP) — a standard debugging interface built into all Chromium/Electron applications by Google, including VS Code, Slack, and Discord.
+Reading and controlling your chart happens entirely on your machine. The tool talks to your locally running TradingView Desktop instance over Chrome DevTools Protocol (CDP) — a standard debugging interface built into all Chromium/Electron applications by Google, including VS Code, Slack, and Discord. It does not modify any TradingView files and does not intercept network traffic.
+
+A few actions cannot be performed from the chart surface alone. Those call TradingView's own HTTP endpoints with the session your app is already signed in to — the same requests the app itself makes when you do these things by hand:
+
+| Feature | Endpoint it calls |
+|---|---|
+| `alert_create`, `alert_delete`, `alert_list` | `pricealerts.tradingview.com` |
+| `watchlist_add`, `watchlist_remove` | `www.tradingview.com/api/v1/symbols_list` |
+| `symbol_search` | `symbol-search.tradingview.com` |
+| `pine_check` (server-side compile) | `pine-facade.tradingview.com` |
+
+These are undocumented internal endpoints and can change without notice. Separately, `tv_health_check` asks `api.github.com` whether a newer commit of this repo exists; set `TV_MCP_NO_UPDATE_CHECK=1` to switch that off. Nothing else leaves your machine, and nothing at all goes to Bottrading.
 
 The debug port is disabled by default and must be explicitly enabled by you using a standard Chromium flag (`--remote-debugging-port=9222`). Nothing happens without that deliberate step.
 
 ## What This Tool Does Not Do
 
-- Connect to TradingView's servers or APIs
-- Store, transmit, or redistribute any market data
+- Send your chart data, credentials, or usage telemetry to Bottrading or any third party
+- Store or redistribute market data
 - Work without a valid TradingView subscription and installed Desktop app
 - Bypass any TradingView paywall or access restriction
 - Execute real trades (chart interaction only)
@@ -197,7 +208,7 @@ tv screenshot / discover / ui-state / range / scroll
 
 The `tv stream` commands poll your locally running TradingView Desktop instance at regular intervals via Chrome DevTools Protocol on localhost.
 
-No connection is made to TradingView's servers. All data stays on your machine.
+Streaming itself makes no connection to TradingView's servers — the polling loop reads your local instance only, and all data stays on your machine.
 
 > [!WARNING]
 > Programmatic consumption of TradingView data may conflict with their Terms of Use regardless of the data source. You are solely responsible for ensuring your usage complies.
@@ -383,7 +394,7 @@ This tool is an independent MCP server that connects to Claude Code via the stan
 
 This project is provided **for personal, educational, and research purposes only**.
 
-**How this tool works:** This tool uses Chrome DevTools Protocol (CDP), the standard debugging interface built into Chromium-based applications. It does not reverse engineer any proprietary TradingView protocol, connect to TradingView's servers, or bypass any access controls. The debug port must be explicitly enabled by the user via a standard Chromium command-line flag (`--remote-debugging-port=9222`).
+**How this tool works:** This tool uses Chrome DevTools Protocol (CDP), the standard debugging interface built into Chromium-based applications. It does not decompile, patch, or modify TradingView's software, and it does not bypass any paywall, subscription tier, or access control. It does use undocumented internal interfaces of the Desktop app, and for a few features TradingView's own web endpoints, in both cases through the authenticated session you are already signed in to. The debug port must be explicitly enabled by the user via a standard Chromium command-line flag (`--remote-debugging-port=9222`).
 
 By using this software, you acknowledge and agree that:
 
@@ -395,7 +406,7 @@ By using this software, you acknowledge and agree that:
    - Circumventing TradingView's access controls or subscription restrictions
    - Performing automated trading or algorithmic decision-making using extracted data
    - Violating the intellectual property rights of Pine Script indicator authors
-   - Connecting to TradingView's servers or infrastructure (all access is via the locally running Desktop app)
+   - Automated or high-volume querying of TradingView's endpoints beyond ordinary personal use of your own account
 5. The streaming functionality monitors your locally running TradingView Desktop instance only. It does not connect to TradingView's servers or extract data from TradingView's infrastructure.
 6. Market data accessed through this tool remains subject to exchange and data provider licensing terms. **Do not redistribute, store, or commercially exploit any data obtained through this tool.**
 7. This tool accesses internal, undocumented TradingView application interfaces that may change or break at any time without notice.

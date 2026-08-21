@@ -18,6 +18,8 @@ const REPO_ROOT = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 // detached HEAD, not a git checkout) so it can't break the health check.
 let _updateCache = null;
 async function checkForUpdate() {
+  // Opt out of the only outbound call this tool makes that is not to TradingView.
+  if (process.env.TV_MCP_NO_UPDATE_CHECK) return null;
   if (_updateCache && (Date.now() - _updateCache.at) < 3600_000) return _updateCache.value;
   let value = null;
   try {
